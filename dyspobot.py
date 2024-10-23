@@ -8,13 +8,9 @@ from openpyxl import load_workbook, Workbook
 from openpyxl.chart import BarChart, Reference, Series
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 
-# TODO: - check why excel is sent to general 
-
 
 # Global variables
 user_dyspo = {}
-num_of_dyspo_from_users = 0
-menager_id = 636788376422449167
 user_messages = {}
 thick_right_border = Border(left=Side(style='none'), 
                     right=Side(style='thick'), 
@@ -154,7 +150,6 @@ def add_to_spredsheet(user_id, day, hours):
     adjusted_hours[1] = adjust_time(adjusted_hours[1], 30)
 
   user_dyspo[user_id][day] = adjusted_hours
-  # print(f"Updated dyspo for {user_id}: {user_dyspo[user_id]}")  # Debugging information
 
 
 def adjust_time(time_str, minutes):
@@ -321,15 +316,15 @@ async def notifoff(ctx):
     notified_users.remove(ctx.author)
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
 
+
 @tasks.loop(hours=1) # The message will be delivered every wednesday form 16 to 16:59 depending when was the program started
 async def send_dyspo():
   now = datetime.now()
   if (now.weekday() == 2 and now.hour == 16):  # Check if it's Wednesday at 4 PM
     for guild in bot.guilds:
       for member in guild.members:
-        if not member.bot:  # Skip bot accounts
+        if not member.bot and discord.utils.get(member.roles, name="beboki"):  # Skip bot accounts and check for role "beboki"
           await send_select_menus(member)
-
 
 
 @tasks.loop(hours=1)
