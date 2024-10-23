@@ -11,20 +11,27 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Fo
 
 # Global variables
 user_dyspo = {}
+
 user_messages = {}
-thick_right_border = Border(left=Side(style='none'), 
+
+THICK_RIGHT_BORDER = Border(left=Side(style='thin'), 
                     right=Side(style='thick'), 
                     top=Side(style='none'), 
                     bottom=Side(style='none'))
 
-thick_right_and_left_border = Border(left=Side(style='thick'), 
-                    right=Side(style='thick'), 
+THICK_LEFT_BORDER = Border(left=Side(style='thick'),
+                    right=Side(style='thin'), 
                     top=Side(style='none'), 
                     bottom=Side(style='none'))
+
+THICK_RIGHT_LEFT_BOTTOM_BORDER = Border(left=Side(style='thick'), 
+                    right=Side(style='thick'), 
+                    top=Side(style='none'), 
+                    bottom=Side(style='thick'))
 
 notified_users = [] # TODO: You need to save these data structures so they don't reset after reboot
 
-fill_colours = {
+FILL_COLOURS = {
   "Monday": PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid"),  # Desaturated Red
   "Tuesday": PatternFill(start_color="FFCC99", end_color="FFCC99", fill_type="solid"),  # Desaturated Orange
   "Wednesday": PatternFill(start_color="FFFF99", end_color="FFFF99", fill_type="solid"),  # Desaturated Yellow
@@ -34,6 +41,16 @@ fill_colours = {
   "Sunday": PatternFill(start_color="CC99FF", end_color="CC99FF", fill_type="solid")   # Desaturated Purple
 }
 
+#for some reason PatternFill does not work for the make_spredsheet function so it has to be defined again
+FILL_COLOURS_INIT = {
+    "Monday": "#FF9999",  # Desaturated Red
+    "Tuesday": "#FFCC99",  # Desaturated Orange
+    "Wednesday": "#FFFF99",  # Desaturated Yellow
+    "Thursday": "#99FF99",  # Desaturated Green
+    "Friday": "#99CCFF",  # Desaturated Light Blue
+    "Saturday": "#9999FF",  # Desaturated Blue
+    "Sunday": "#CC99FF"   # Desaturated Purple
+}
 
 # Function to load the token from .env file
 def load_token():
@@ -65,23 +82,24 @@ def current_workbook_name():
 
 # Function to create a new spreadsheet for the next week
 def make_spredsheet():
-  global current_workbook, current_worksheet
+  global current_workbook, current_worksheet, FILL_COLOURS_INIT
   file_name = current_workbook_name()
   current_workbook = xlsxwriter.Workbook(file_name)
   current_worksheet = current_workbook.add_worksheet()
   days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
   for row, day in enumerate(days_of_week):
     current_worksheet.write(row + 1, 0, day)
-  #   current_worksheet
-  # current
+    cell_format = current_workbook.add_format({'bg_color': FILL_COLOURS_INIT[day]})
+    current_worksheet.set_row(row + 1, None, cell_format)  # Apply the fill color to the row
+
   current_workbook.close()
 
 
 def update_spredsheet(user, dyspo):
   global num_of_dyspo_from_users
   global current_worksheet, current_workbook
-  global thick_right_border
-  global fill_colours
+  global THICK_RIGHT_BORDER
+  global FILL_COLOURS
 
   if not os.path.exists(current_workbook_name()):
     make_spredsheet()
@@ -98,10 +116,11 @@ def update_spredsheet(user, dyspo):
   
   if user_col is None:
     user_col = current_worksheet.max_column + 1
-    current_worksheet.merge_cells(start_row = row, start_column = user_col, end_row = row, end_column = user_col + 1)
-    
+    current_worksheet.cell(row = row, column = user_col).border = THICK_RIGHT_LEFT_BOTTOM_BORDER
+    current_worksheet.cell(row = row, column = user_col + 1).border = THICK_RIGHT_LEFT_BOTTOM_BORDER
+
+    current_worksheet.merge_cells(start_row = row, start_column = user_col, end_row = row, end_column = user_col + 1)    
     current_worksheet.cell(row = row, column = user_col).value = user
-    current_worksheet.cell(row=row, column=user_col).border = thick_right_and_left_border
 
   row += 1
 
@@ -109,14 +128,16 @@ def update_spredsheet(user, dyspo):
     if len(hours) == 2:
       current_worksheet.cell(row = row, column = user_col, value=hours[0])
       current_worksheet.cell(row = row, column = user_col + 1, value=hours[1])
-      current_worksheet.cell(row = row, column = user_col + 1).border = thick_right_border
+      current_worksheet.cell(row = row, column = user_col).border = THICK_LEFT_BORDER
+      current_worksheet.cell(row = row, column = user_col + 1).border = THICK_RIGHT_BORDER
     else:
       current_worksheet.cell(row = row, column = user_col, value=hours[0])
       current_worksheet.cell(row = row, column = user_col + 1, value=hours[0])
-      current_worksheet.cell(row = row, column = user_col + 1).border = thick_right_border
+      current_worksheet.cell(row = row, column = user_col).border = THICK_LEFT_BORDER
+      current_worksheet.cell(row = row, column = user_col + 1).border = THICK_RIGHT_BORDER
 
-    current_worksheet.cell(row=row, column=user_col).fill = fill_colours[day]
-    current_worksheet.cell(row=row, column=user_col + 1).fill = fill_colours[day]
+    current_worksheet.cell(row=row, column=user_col).fill = FILL_COLOURS[day]
+    current_worksheet.cell(row=row, column=user_col + 1).fill = FILL_COLOURS[day]
 
     row += 1
 
@@ -161,20 +182,20 @@ def adjust_time(time_str, minutes):
   return f"{hour:02d}:{minute:02d}"
 
 
-def create_gantt_chart(workbook, worksheet):
-  chart = BarChart()
-  chart.type = "bar"
-  chart.style = 10
-  chart.title = "Gantt Chart"
-  chart.y_axis.title = 'Days'
-  chart.x_axis.title = 'Hours'
+# def create_gantt_chart(workbook, worksheet):
+#   chart = BarChart()
+#   chart.type = "bar"
+#   chart.style = 10
+#   chart.title = "Gantt Chart"
+#   chart.y_axis.title = 'Days'
+#   chart.x_axis.title = 'Hours'
 
-  data = Reference(worksheet, min_col=2, min_row=1, max_col=worksheet.max_column, max_row=worksheet.max_row)
-  categories = Reference(worksheet, min_col=1, min_row=2, max_row=worksheet.max_row)
-  chart.add_data(data, titles_from_data=True)
-  chart.set_categories(categories)
+#   data = Reference(worksheet, min_col=2, min_row=1, max_col=worksheet.max_column, max_row=worksheet.max_row)
+#   categories = Reference(worksheet, min_col=1, min_row=2, max_row=worksheet.max_row)
+#   chart.add_data(data, titles_from_data=True)
+#   chart.set_categories(categories)
 
-  worksheet.add_chart(chart, "B10")
+#   worksheet.add_chart(chart, "B10")
 
 
 async def notify_users(users):
