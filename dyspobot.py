@@ -52,10 +52,14 @@ FILL_COLOURS_INIT = {
     "Sunday": "#CC99FF"   # Desaturated Purple
 }
 
+def load_db_password():
+  load_dotenv()
+  return os.getenv('DB_PASSWORD')
+
 KAFAR_DB = mysql.connector.connect(
     host="uk01-sql.pebblehost.com",
     user="customer_862222_kafar-coffee-dyspozycje",
-    password=os.getenv('DB_PASSWORD'),
+    password=load_db_password(),
     database="customer_862222_kafar-coffee-dyspozycje",
     port="3306"
 )
@@ -335,7 +339,7 @@ async def notifon(ctx):
   if result is None:
     DB_CURSOR.execute('INSERT INTO NOTIFIED_USERS (USER_ID, USER_NAME) VALUES (%s, %s)', (ctx.author.id, ctx.author.name))
     KAFAR_DB.commit()
-    await ctx.send(":red_circle: Wyłączono powiadomienia!")
+    await ctx.send(":green_circle: Włączono powiadomienia!")
   else:
     await ctx.send("Powiadomienia już są wyłączone!")
 
@@ -350,6 +354,7 @@ async def notifoff(ctx):
     await ctx.send("Powiadomienia już są wyłączone!")
   else:
     DB_CURSOR.execute("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
+    KAFAR_DB.commit()
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
 
 
