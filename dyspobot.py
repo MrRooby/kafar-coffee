@@ -30,7 +30,6 @@ THICK_RIGHT_LEFT_BOTTOM_BORDER = Border(left=Side(style='thick'),
                     top=Side(style='none'), 
                     bottom=Side(style='thick'))
 
-notified_users = [] # TODO: You need to save these data structures so they don't reset after reboot
 
 FILL_COLOURS = {
   "Monday": PatternFill(start_color="FF9999", end_color="FF9999", fill_type="solid"),  # Desaturated Red
@@ -53,16 +52,16 @@ FILL_COLOURS_INIT = {
     "Sunday": "#CC99FF"   # Desaturated Purple
 }
 
-# KAFAR_DB = mysql.connector.connect(
-#     host="uk01-sql.pebblehost.com",
-#     user="customer_862222_kafar-coffee-dyspozycje",
-#     password=load_db_password(),
-#     database="customer_862222_kafar-coffee-dyspozycje",
-#     port="3306"
-# )
+KAFAR_DB = mysql.connector.connect(
+    host="uk01-sql.pebblehost.com",
+    user="customer_862222_kafar-coffee-dyspozycje",
+    password=os.getenv('DB_PASSWORD'),
+    database="customer_862222_kafar-coffee-dyspozycje",
+    port="3306"
+)
 
 
-# DB_CURSOR = KAFAR_DB.cursor()
+DB_CURSOR = KAFAR_DB.cursor()
 
 
 # Function to load the token from .env file
@@ -70,9 +69,6 @@ def load_token():
   load_dotenv()
   return os.getenv('TOKEN')
 
-def load_db_password():
-  load_dotenv()
-  return os.getenv('DB_PASSWORD')
 
 # Function to generate the dates for the current dyspo
 def get_next_week_dates():
@@ -216,9 +212,11 @@ def adjust_time(time_str, minutes):
 
 
 async def notify_users(users):
-  global notified_users
-  for notified_user in notified_users:
-    await notified_user.send(f"{users.name} wypełnił dyspo.")
+  DB_CURSOR.execute('SELECT USER_ID FROM NOTIFIED_USERS')
+  notified_users = DB_CURSOR.fetchall()
+  for user_id in notified_users:
+    user = await bot.fetch_user(user_id[0])
+    await user.send(f"{users.name} wypełnił dyspo.")
 
 
 # A class for a select menu for a day of the week
@@ -331,26 +329,29 @@ async def excel(ctx):
 
 @bot.command()
 async def notifon(ctx):
-  global notified_users
+  DB_CURSOR.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  result = DB_CURSOR.fetchone()
 
-  if ctx.author in notified_users:
-    await ctx.send("Powiadomienia już są włączone!")
-    return
+  if result is None:
+    DB_CURSOR.execute('INSERT INTO NOTIFIED_USERS (USER_ID, USER_NAME) VALUES (%s, %s)', (ctx.author.id, ctx.author.name))
+    KAFAR_DB.commit()
+    await ctx.send(":red_circle: Wyłączono powiadomienia!")
   else:
-    notified_users.append(ctx.author)
-    # DB_CURSOR.execute("INSERT INTO NOTIFIED_USERS (USER_ID, USER_NAME) VALUES (%s, %d)", (ctx.author.id, ctx.author.name))
-    await ctx.send(":green_circle: Powiadomienia włączone!")
+    await ctx.send("Powiadomienia już są wyłączone!")
+
 
 
 @bot.command()
 async def notifoff(ctx):
-  global notified_users
+  DB_CURSOR.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  result = DB_CURSOR.fetchone()
 
-  if ctx.author not in notified_users:
+  if result is None:
     await ctx.send("Powiadomienia już są wyłączone!")
   else:
-    notified_users.remove(ctx.author)
+    DB_CURSOR.execute("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
+
 
 
 @tasks.loop(hours=1) # The message will be delivered every wednesday form 16 to 16:59 depending when was the program started
