@@ -7,6 +7,7 @@ import xlsxwriter
 from openpyxl import load_workbook, Workbook
 from openpyxl.chart import BarChart, Reference, Series
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
+import mysql.connector
 
 
 # Global variables
@@ -52,10 +53,26 @@ FILL_COLOURS_INIT = {
     "Sunday": "#CC99FF"   # Desaturated Purple
 }
 
+# KAFAR_DB = mysql.connector.connect(
+#     host="uk01-sql.pebblehost.com",
+#     user="customer_862222_kafar-coffee-dyspozycje",
+#     password=load_db_password(),
+#     database="customer_862222_kafar-coffee-dyspozycje",
+#     port="3306"
+# )
+
+
+# DB_CURSOR = KAFAR_DB.cursor()
+
+
 # Function to load the token from .env file
 def load_token():
   load_dotenv()
   return os.getenv('TOKEN')
+
+def load_db_password():
+  load_dotenv()
+  return os.getenv('DB_PASSWORD')
 
 # Function to generate the dates for the current dyspo
 def get_next_week_dates():
@@ -81,7 +98,7 @@ def current_workbook_name():
   return f"dyspozycje/dyspo[{start_of_next_week.strftime('%d')}-{end_of_next_week.strftime('%d.%m')}].xlsx"
 
 # Function to create a new spreadsheet for the next week
-def make_spredsheet():
+def init_spredsheet():
   global current_workbook, current_worksheet, FILL_COLOURS_INIT
   file_name = current_workbook_name()
   current_workbook = xlsxwriter.Workbook(file_name)
@@ -102,7 +119,7 @@ def update_spredsheet(user, dyspo):
   global FILL_COLOURS
 
   if not os.path.exists(current_workbook_name()):
-    make_spredsheet()
+    init_spredsheet()
   current_workbook = load_workbook(current_workbook_name())
   current_worksheet = current_workbook.active
   
@@ -209,7 +226,7 @@ class WorkHoursSelect(discord.ui.Select):
   def __init__(self, placeholder):
     global num_of_dyspo_from_users
     options =  [discord.SelectOption(label="dowolnie")] + [discord.SelectOption(label="out")] + [
-      discord.SelectOption(label=f"{hour}:{"00"}")
+      discord.SelectOption(label=f"{hour}:00")
       for hour in range(6, 20)
     ] + [discord.SelectOption(label="OD + 30min")] + [discord.SelectOption(label="DO + 30min")]
     super().__init__(placeholder=placeholder, min_values=1, max_values=4, options=options)
@@ -291,10 +308,7 @@ async def send_select_menus(user):
 
 
 
-
-
 bot = initialize_bot()
-make_spredsheet()
 
 @bot.event
 async def on_ready():
@@ -324,6 +338,7 @@ async def notifon(ctx):
     return
   else:
     notified_users.append(ctx.author)
+    # DB_CURSOR.execute("INSERT INTO NOTIFIED_USERS (USER_ID, USER_NAME) VALUES (%s, %d)", (ctx.author.id, ctx.author.name))
     await ctx.send(":green_circle: Powiadomienia włączone!")
 
 
@@ -353,7 +368,7 @@ async def create_spredsheet():
   global current_worksheet, current_workbook, num_of_dyspo_from_users
   now = datetime.now()
   if (now.weekday() == 0 and now.hour == 0):
-    current_workbook, current_worksheet = make_spredsheet()
+    current_workbook, current_worksheet = init_spredsheet()
     num_of_dyspo_from_users = 0
     print("New dyspo sheet created")
 

@@ -164,3 +164,7 @@ cython_debug/
 dyspozycje/dyspo\[28-03.11].xlsx
 tempCodeRunnerFile.py
 dyspozycje/~$dyspo\[28-03.11].xlsx
+instrukcja.txt
+kafar-db.session.sql
+.vscode/settings.json
+database.py
