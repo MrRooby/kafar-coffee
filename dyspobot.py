@@ -141,7 +141,15 @@ def update_spredsheet(user, dyspo):
 
   row += 1
 
-  for day, hours in dyspo.items():
+  
+  # Define the correct order of days
+  days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+  # Sort the dyspo dictionary according to the correct order of days
+  sorted_dyspo = {day: dyspo[day] for day in days_order if day in dyspo}
+
+
+  for day, hours in sorted_dyspo.items():
     if len(hours) == 2:
       current_worksheet.cell(row = row, column = user_col, value=hours[0])
       current_worksheet.cell(row = row, column = user_col + 1, value=hours[1])
@@ -278,8 +286,11 @@ class ConfirmButton(discord.ui.Button):
       return
     update_spredsheet(interaction.user.name, user_dyspo[interaction.user.name])
     confirmation_message = "Dyspo przesłane!\n\nWybrane godziny:\n"
-    for day, hours in user_dyspo[user_id].items():
-      confirmation_message += f"{day}: {'-'.join(hours)}\n"
+    days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    for day in days_order:
+      if day in user_dyspo[user_id]:
+        hours = user_dyspo[user_id][day]
+        confirmation_message += f"{day}: {'-'.join(hours)}\n"
     print(interaction.user.id)
     await interaction.response.send_message(confirmation_message, ephemeral=True)
 
