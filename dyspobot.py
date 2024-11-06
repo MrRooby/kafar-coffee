@@ -7,7 +7,7 @@ import xlsxwriter
 from openpyxl import load_workbook, Workbook
 from openpyxl.chart import BarChart, Reference, Series
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-import mysql.connector
+from database import *
 
 
 # Global variables
@@ -52,21 +52,6 @@ FILL_COLOURS_INIT = {
     "Sunday": "#CC99FF"   # Desaturated Purple
 }
 
-def load_db_password():
-  load_dotenv()
-  return os.getenv('DB_PASSWORD')
-
-KAFAR_DB = mysql.connector.connect(
-    host="uk01-sql.pebblehost.com",
-    user="customer_862222_kafar-coffee-dyspozycje",
-    password=load_db_password(),
-    database="customer_862222_kafar-coffee-dyspozycje",
-    port="3306"
-)
-
-
-DB_CURSOR = KAFAR_DB.cursor()
-
 
 # Function to load the token from .env file
 def load_token():
@@ -80,6 +65,7 @@ def get_next_week_dates():
   start_of_next_week = today + timedelta(days=(7 - today.weekday()))
   end_of_next_week = start_of_next_week + timedelta(days=6)
   return start_of_next_week, end_of_next_week
+
 
 # Function to initialize the bot with its permissions
 def initialize_bot():
@@ -294,6 +280,9 @@ class ConfirmButton(discord.ui.Button):
     print(interaction.user.id)
     await interaction.response.send_message(confirmation_message, ephemeral=True)
 
+    if(is_dyspo_record_exists(interaction.user.id) == False):
+      add_dyspo_record(interaction.user.id)
+
     await notify_users(interaction.user)
 
     await interaction.message.delete()
@@ -318,6 +307,7 @@ async def send_select_menus(user):
   
   # Store the messages to delete later
   user_messages[user.name] = [message1, message2]
+
 
 
 
@@ -348,11 +338,11 @@ async def notifon(ctx):
   result = DB_CURSOR.fetchone()
 
   if result is None:
-    DB_CURSOR.execute('INSERT INTO NOTIFIED_USERS (USER_ID, USER_NAME) VALUES (%s, %s)', (ctx.author.id, ctx.author.name))
+    DB_CURSOR.execute('INSERT INTO NOTIFIED_USERS (USER_ID) VALUES (%s)', (ctx.author.id))
     KAFAR_DB.commit()
     await ctx.send(":green_circle: Włączono powiadomienia!")
   else:
-    await ctx.send("Powiadomienia już są wyłączone!")
+    await ctx.send("Powiadomienia już są włączone!")
 
 
 
@@ -376,8 +366,9 @@ async def send_dyspo():
   if (now.weekday() == 2 and now.hour == 16):  # Check if it's Wednesday at 4 PM
     for guild in bot.guilds:
       for member in guild.members:
-        if not member.bot and discord.utils.get(member.roles, name="beboki"):  # Skip bot accounts and check for role "beboki"
+        if not is_form_sent_record_exists(member.id) and not member.bot and discord.utils.get(member.roles, name="beboki") and is_dyspo_record_exists(member.id) == False:  # Skip bot accounts and check for role "beboki"
           await send_select_menus(member)
+          add_form_sent_record(member.id)
 
 
 @tasks.loop(hours=1)
