@@ -9,6 +9,7 @@ from openpyxl.chart import BarChart, Reference, Series
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 from database import *
 
+#TODO: - interakcja ma timeout 3min. Trzeba się zabezpieczyć przed tym
 
 # Global variables
 user_dyspo = {}
@@ -193,22 +194,6 @@ def adjust_time(time_str, minutes):
   return f"{hour:02d}:{minute:02d}"
 
 
-# def create_gantt_chart(workbook, worksheet):
-#   chart = BarChart()
-#   chart.type = "bar"
-#   chart.style = 10
-#   chart.title = "Gantt Chart"
-#   chart.y_axis.title = 'Days'
-#   chart.x_axis.title = 'Hours'
-
-#   data = Reference(worksheet, min_col=2, min_row=1, max_col=worksheet.max_column, max_row=worksheet.max_row)
-#   categories = Reference(worksheet, min_col=1, min_row=2, max_row=worksheet.max_row)
-#   chart.add_data(data, titles_from_data=True)
-#   chart.set_categories(categories)
-
-#   worksheet.add_chart(chart, "B10")
-
-
 async def notify_users(users):
   DB_CURSOR.execute('SELECT USER_ID FROM NOTIFIED_USERS')
   notified_users = DB_CURSOR.fetchall()
@@ -251,6 +236,7 @@ class WorkHoursView1(discord.ui.View):
     self.add_item(WorkHoursSelect("Tuesday"))
     self.add_item(WorkHoursSelect("Wednesday"))
     self.add_item(WorkHoursSelect("Thursday"))
+    self.timeout = 1800  # 30 minutes
 
 class WorkHoursView2(discord.ui.View):
   def __init__(self):
@@ -258,12 +244,14 @@ class WorkHoursView2(discord.ui.View):
     self.add_item(WorkHoursSelect("Friday"))
     self.add_item(WorkHoursSelect("Saturday"))
     self.add_item(WorkHoursSelect("Sunday"))
+    self.timeout = 1800  # 30 minutes
     self.add_item(ConfirmButton())
 
 
 class ConfirmButton(discord.ui.Button):
   def __init__(self):
     super().__init__(label="Confirm", style=discord.ButtonStyle.primary)
+    self.timeout = 1800  # 30 minutes
 
   async def callback(self, interaction: discord.Interaction):
     user_id = interaction.user.name
@@ -271,6 +259,8 @@ class ConfirmButton(discord.ui.Button):
       await interaction.response.send_message("Wypełnij wszystkie dni tygodnia", ephemeral=True)
       return
     update_spredsheet(interaction.user.name, user_dyspo[interaction.user.name])
+    start_of_next_week, end_of_next_week = get_next_week_dates()
+    add_dyspo_to_database(interaction.user.id, user_dyspo[interaction.user.name], start_of_next_week, end_of_next_week)
     confirmation_message = "Dyspo przesłane!\n\nWybrane godziny:\n"
     days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days_order:
@@ -279,9 +269,6 @@ class ConfirmButton(discord.ui.Button):
         confirmation_message += f"{day}: {'-'.join(hours)}\n"
     print(interaction.user.id)
     await interaction.response.send_message(confirmation_message, ephemeral=True)
-
-    if(is_dyspo_record_exists(interaction.user.id) == False):
-      add_dyspo_record(interaction.user.id)
 
     await notify_users(interaction.user)
 
@@ -366,9 +353,10 @@ async def send_dyspo():
   if (now.weekday() == 2 and now.hour == 16):  # Check if it's Wednesday at 4 PM
     for guild in bot.guilds:
       for member in guild.members:
-        if not is_form_sent_record_exists(member.id) and not member.bot and discord.utils.get(member.roles, name="beboki") and is_dyspo_record_exists(member.id) == False:  # Skip bot accounts and check for role "beboki"
+        start_of_next_week, end_of_next_week = get_next_week_dates()
+        if not is_form_sent_record_exists(member.id, start_of_next_week, end_of_next_week) and not member.bot and discord.utils.get(member.roles, name="beboki") and dyspo_record_exists(member.id, start_of_next_week, end_of_next_week) == False:  # Skip bot accounts and check for role "beboki"
           await send_select_menus(member)
-          add_form_sent_record(member.id)
+          add_form_sent_record(member.id, start_of_next_week, end_of_next_week)
 
 
 @tasks.loop(hours=1)
