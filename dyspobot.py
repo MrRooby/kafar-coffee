@@ -8,6 +8,7 @@ from openpyxl import load_workbook, Workbook
 from openpyxl.chart import BarChart, Reference, Series
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 from database import *
+from ganttchart import *
 
 #TODO: - interakcja ma timeout 3min. Trzeba się zabezpieczyć przed tym
 
@@ -79,6 +80,7 @@ def initialize_bot():
   bot = commands.Bot(command_prefix='!', intents=intents)
   return bot
 
+kafarDB = DATABASE()
 
 def current_workbook_name():
   start_of_next_week, end_of_next_week = get_next_week_dates()
@@ -195,8 +197,8 @@ def adjust_time(time_str, minutes):
 
 
 async def notify_users(users):
-  DB_CURSOR.execute('SELECT USER_ID FROM NOTIFIED_USERS')
-  notified_users = DB_CURSOR.fetchall()
+  kafarDB.cursor.execute('SELECT USER_ID FROM NOTIFIED_USERS')
+  notified_users = kafarDB.cursor.fetchall()
   for user_id in notified_users:
     user = await bot.fetch_user(user_id[0])
     await user.send(f"{users.name} wypełnił dyspo.")
@@ -260,7 +262,7 @@ class ConfirmButton(discord.ui.Button):
       return
     update_spredsheet(interaction.user.name, user_dyspo[interaction.user.name])
     start_of_next_week, end_of_next_week = get_next_week_dates()
-    add_dyspo_to_database(interaction.user.id, user_dyspo[interaction.user.name], start_of_next_week, end_of_next_week)
+    kafarDB.add_dyspo_to_database(interaction.user.id, user_dyspo[interaction.user.name], start_of_next_week, end_of_next_week)
     confirmation_message = "Dyspo przesłane!\n\nWybrane godziny:\n"
     days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     for day in days_order:
@@ -321,12 +323,12 @@ async def excel(ctx):
 
 @bot.command()
 async def notifon(ctx):
-  DB_CURSOR.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
-  result = DB_CURSOR.fetchone()
+  kafarDB.cursor.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  result = kafarDB.cursor.fetchone()
 
   if result is None:
-    DB_CURSOR.execute('INSERT INTO NOTIFIED_USERS (USER_ID) VALUES (%s)', (ctx.author.id))
-    KAFAR_DB.commit()
+    kafarDB.cursor.execute('INSERT INTO NOTIFIED_USERS (USER_ID) VALUES (%s)', (ctx.author.id,))
+    kafarDB.connection.commit()
     await ctx.send(":green_circle: Włączono powiadomienia!")
   else:
     await ctx.send("Powiadomienia już są włączone!")
@@ -335,16 +337,34 @@ async def notifon(ctx):
 
 @bot.command()
 async def notifoff(ctx):
-  DB_CURSOR.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
-  result = DB_CURSOR.fetchone()
+  kafarDB.cursor.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  result = kafarDB.cursor.fetchone()
 
   if result is None:
     await ctx.send("Powiadomienia już są wyłączone!")
   else:
-    DB_CURSOR.execute("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
-    KAFAR_DB.commit()
+    kafarDB.cursor.execute("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
+    kafarDB.connection.commit()
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
 
+
+@bot.command()
+async def wykres(ctx):
+  start_of_next_week, end_of_next_week = get_next_week_dates()
+  switcher = {
+    1: 'MON',
+    2: 'TUE',
+    3: 'WED',
+    4: 'THU',
+    5: 'FRI',
+    6: 'SAT',
+    7: 'SUN'
+  }
+
+  for day in range(1, 8):
+    create_gantt_chart(start_of_next_week, end_of_next_week, day, kafarDB.connection, kafarDB.cursor)
+    day_name = (start_of_next_week + timedelta(days=day-1)).strftime('%A')
+    await ctx.send(file=discord.File(f"charts/{switcher[day]}.png"))
 
 
 @tasks.loop(hours=1) # The message will be delivered every wednesday form 16 to 16:59 depending when was the program started
@@ -354,9 +374,9 @@ async def send_dyspo():
     for guild in bot.guilds:
       for member in guild.members:
         start_of_next_week, end_of_next_week = get_next_week_dates()
-        if not is_form_sent_record_exists(member.id, start_of_next_week, end_of_next_week) and not member.bot and discord.utils.get(member.roles, name="beboki") and dyspo_record_exists(member.id, start_of_next_week, end_of_next_week) == False:  # Skip bot accounts and check for role "beboki"
+        if not kafarDB.is_form_sent_record_exists(member.id, start_of_next_week, end_of_next_week) and not member.bot and discord.utils.get(member.roles, name="beboki") and kafarDB.dyspo_record_exists(member.id, start_of_next_week, end_of_next_week) == False:  # Skip bot accounts and check for role "beboki"
           await send_select_menus(member)
-          add_form_sent_record(member.id, start_of_next_week, end_of_next_week)
+          kafarDB.add_form_sent_record(member.id, start_of_next_week, end_of_next_week)
 
 
 @tasks.loop(hours=1)
