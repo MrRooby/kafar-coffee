@@ -294,6 +294,7 @@ async def send_select_menus(user):
   message1 = await user.send(date + instructions, view=view1)
   message2 = await user.send(view=view2)
   
+  
   # Store the messages to delete later
   user_messages[user.name] = [message1, message2]
 
@@ -370,13 +371,14 @@ async def wykres(ctx):
 @tasks.loop(hours=1) # The message will be delivered every wednesday form 16 to 16:59 depending when was the program started
 async def send_dyspo():
   now = datetime.now()
-  if (now.weekday() == 2 and now.hour == 16):  # Check if it's Wednesday at 4 PM
+  if (now.weekday() == 2 and now.hour == 15):  # Check if it's Wednesday at 4 PM
     for guild in bot.guilds:
       for member in guild.members:
         start_of_next_week, end_of_next_week = get_next_week_dates()
         if not kafarDB.is_form_sent_record_exists(member.id, start_of_next_week, end_of_next_week) and not member.bot and discord.utils.get(member.roles, name="beboki") and kafarDB.dyspo_record_exists(member.id, start_of_next_week, end_of_next_week) == False:  # Skip bot accounts and check for role "beboki"
           await send_select_menus(member)
           kafarDB.add_form_sent_record(member.id, start_of_next_week, end_of_next_week)
+    print(f"Sent dyspo at {now}")
 
 
 @tasks.loop(hours=1)
