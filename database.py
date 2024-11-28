@@ -7,6 +7,10 @@ import time
 class DATABASE:
     def __init__(self):
         load_dotenv()
+        self.connection = self.connect_to_database()
+        self.cursor = self.connection.cursor()
+
+    def connect_to_database(self):
         self.connection = mysql.connector.connect(
             host="uk01-sql.pebblehost.com",
             user="customer_862222_kafar-coffee-dyspozycje",
@@ -14,22 +18,17 @@ class DATABASE:
             database="customer_862222_kafar-coffee-dyspozycje",
             port="3306"
         )
-        self.cursor = self.connection.cursor()
-
+        return self.connection
+    
     def execute_query(self, query, params=None, retries=3, delay=5):
-        for attempt in range(retries):
-            try:
-                self.cursor.execute(query, params)
-                return self.cursor
-            except mysql.connector.Error as err:
-                print(f"Error: {err}")
-                if attempt < retries - 1:
-                    print(f"Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                else:
-                    raise
+        if not self.connection.is_connected():
+            print("Connection to MySQL server lost. Reconnecting...")
+            self.connect_to_database()
+        
+        self.cursor.execute(query, params)
+        return self.cursor
 
-    def add_dyspo_record(self, user_id, start_of_next_week, end_of_next_week):
+    def add_dyspo_record(self, start_of_next_week, end_of_next_week):
         start_day = start_of_next_week.strftime('%Y.%m.%d')
         end_day = end_of_next_week.strftime('%Y.%m.%d')
         cursor = self.execute_query('SELECT ID FROM WEEK WHERE START_DAY = %s AND END_DAY = %s', (start_day, end_day))
@@ -104,7 +103,7 @@ class DATABASE:
             self.connection.commit()
         
         # Insert the data into the DYSPO table
-        self.add_dyspo_record(user_id, start_of_next_week, end_of_next_week)
+        self.add_dyspo_record(start_of_next_week, end_of_next_week)
         
         # Prepare the data for insertion into AVAILABILITY table
         for day, hours in dyspo.items():

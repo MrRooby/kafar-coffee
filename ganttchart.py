@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
-def get_availability(start_of_next_week, end_of_next_week, day_of_week, connection, cursor):
+def get_availability(start_of_next_week, end_of_next_week, day_of_week, database):
     start_day = start_of_next_week.strftime('%Y.%m.%d')
     end_day = end_of_next_week.strftime('%Y.%m.%d')
 
@@ -15,8 +15,8 @@ def get_availability(start_of_next_week, end_of_next_week, day_of_week, connecti
         JOIN USERS u ON a.USER_ID = u.id
         WHERE w.START_DAY = %s AND w.END_DAY = %s AND a.DAY_OF_WEEK = %s
     '''
-    cursor.execute(query, (start_day, end_day, day_of_week))
-    results = cursor.fetchall()
+    database.execute_query(query, (start_day, end_day, day_of_week))
+    results = database.cursor.fetchall()
 
     # Create a DataFrame with the retrieved data
     availability_df = pd.DataFrame(results, columns=['name', 'start_time', 'end_time'])
@@ -34,7 +34,7 @@ def get_availability(start_of_next_week, end_of_next_week, day_of_week, connecti
     return availability_df
 
 
-def create_gantt_chart(start_of_next_week, end_of_next_week, day_of_week, connection, cursor):
+def create_gantt_chart(start_of_next_week, end_of_next_week, day_of_week, database):
     switcher = {
         1: 'MON',
         2: 'TUE',
@@ -45,7 +45,7 @@ def create_gantt_chart(start_of_next_week, end_of_next_week, day_of_week, connec
         7: 'SUN'
     }
 
-    availability_df = get_availability(start_of_next_week, end_of_next_week, switcher[day_of_week], connection, cursor)
+    availability_df = get_availability(start_of_next_week, end_of_next_week, switcher[day_of_week], database)
     fig, ax = plt.subplots()
 
     # Plot the bars

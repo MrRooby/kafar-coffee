@@ -4,13 +4,10 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import xlsxwriter
-from openpyxl import load_workbook, Workbook
-from openpyxl.chart import BarChart, Reference, Series
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill, Border, Side
 from database import *
 from ganttchart import *
-
-#TODO: - interakcja ma timeout 3min. Trzeba się zabezpieczyć przed tym
 
 # Global variables
 user_dyspo = {}
@@ -80,11 +77,14 @@ def initialize_bot():
   bot = commands.Bot(command_prefix='!', intents=intents)
   return bot
 
+
 kafarDB = DATABASE()
+
 
 def current_workbook_name():
   start_of_next_week, end_of_next_week = get_next_week_dates()
   return f"dyspozycje/dyspo[{start_of_next_week.strftime('%d')}-{end_of_next_week.strftime('%d.%m')}].xlsx"
+
 
 # Function to create a new spreadsheet for the next week
 def init_spredsheet():
@@ -197,7 +197,7 @@ def adjust_time(time_str, minutes):
 
 
 async def notify_users(users):
-  kafarDB.cursor.execute('SELECT USER_ID FROM NOTIFIED_USERS')
+  kafarDB.execute_query('SELECT USER_ID FROM NOTIFIED_USERS')
   notified_users = kafarDB.cursor.fetchall()
   for user_id in notified_users:
     user = await bot.fetch_user(user_id[0])
@@ -324,11 +324,11 @@ async def excel(ctx):
 
 @bot.command()
 async def notifon(ctx):
-  kafarDB.cursor.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  kafarDB.execute_query('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
   result = kafarDB.cursor.fetchone()
 
   if result is None:
-    kafarDB.cursor.execute('INSERT INTO NOTIFIED_USERS (USER_ID) VALUES (%s)', (ctx.author.id,))
+    kafarDB.execute_query('INSERT INTO NOTIFIED_USERS (USER_ID) VALUES (%s)', (ctx.author.id,))
     kafarDB.connection.commit()
     await ctx.send(":green_circle: Włączono powiadomienia!")
   else:
@@ -338,13 +338,13 @@ async def notifon(ctx):
 
 @bot.command()
 async def notifoff(ctx):
-  kafarDB.cursor.execute('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
+  kafarDB.execute_query('SELECT * FROM NOTIFIED_USERS WHERE USER_ID = %s', (ctx.author.id,))
   result = kafarDB.cursor.fetchone()
 
   if result is None:
     await ctx.send("Powiadomienia już są wyłączone!")
   else:
-    kafarDB.cursor.execute("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
+    kafarDB.execute_query("DELETE FROM NOTIFIED_USERS WHERE USER_ID = %s", (ctx.author.id,))
     kafarDB.connection.commit()
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
 
@@ -363,7 +363,7 @@ async def wykres(ctx):
   }
 
   for day in range(1, 8):
-    create_gantt_chart(start_of_next_week, end_of_next_week, day, kafarDB.connection, kafarDB.cursor)
+    create_gantt_chart(start_of_next_week, end_of_next_week, day, kafarDB)
     day_name = (start_of_next_week + timedelta(days=day-1)).strftime('%A')
     await ctx.send(file=discord.File(f"charts/{switcher[day]}.png"))
 
