@@ -4,6 +4,8 @@ import mysql.connector
 from datetime import datetime, timedelta
 import time
 
+#test
+
 class DATABASE:
     def __init__(self):
         load_dotenv()
