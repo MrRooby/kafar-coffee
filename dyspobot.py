@@ -9,6 +9,8 @@ from openpyxl.styles import PatternFill, Border, Side
 from database import *
 from ganttchart import *
 
+#test implementacji git
+
 # Global variables
 user_dyspo = {}
 
