@@ -350,6 +350,11 @@ async def notifoff(ctx):
     kafarDB.connection.commit()
     await ctx.send(":red_circle: Wyłączono powiadomienia!")
 
+# Debug command to disconnect from the database
+# @bot.command()
+# async def discon(ctx):
+#   kafarDB.close_connection()
+#   await ctx.send("Disconnected from the database.")
 
 @bot.command()
 async def wykres(ctx):

@@ -7,8 +7,9 @@ import time
 class DATABASE:
     def __init__(self):
         load_dotenv()
-        self.connection = self.connect_to_database()
-        self.cursor = self.connection.cursor()
+        #self.connection = self.connect_to_database()
+        #self.cursor = self.connection.cursor()
+        self.connect_to_database()
 
     def connect_to_database(self):
         self.connection = mysql.connector.connect(
@@ -18,12 +19,18 @@ class DATABASE:
             database="customer_862222_kafar-coffee-dyspozycje",
             port="3306"
         )
-        return self.connection
-    
-    def execute_query(self, query, params=None, retries=3, delay=5):
+        self.cursor = self.connection.cursor()
+        
+    def close_connection(self):
+        self.cursor.close()
+        self.connection.close()
+
+    def execute_query(self, query, params=None):
         if not self.connection.is_connected():
             print("Connection to MySQL server lost. Reconnecting...")
             self.connect_to_database()
+            if self.connection.is_connected():
+                print("Reconnected to MySQL server.")
         
         self.cursor.execute(query, params)
         return self.cursor
