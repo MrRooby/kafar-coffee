@@ -21,10 +21,14 @@ This project is a Discord bot designed to manage and track work schedules (dyspo
 ## Screenshots
 
 ### App Interface
-tbd
+![Hour select screen](https://github.com/user-attachments/assets/1ff6bfd4-b70e-4827-b742-464665faacc0)  
+  
+![Confirmation message](https://github.com/user-attachments/assets/590ac4f2-6760-43ea-9f83-60123905d194)
+
 
 ### Excel Spreadsheet
-tbd
+![Filled out spredsheet example](https://github.com/user-attachments/assets/ff25935b-7193-431d-b27b-77ac74782824)
 
 ### Gantt Chart
-tbd
+![Hourly Chart for one day of the week](https://github.com/user-attachments/assets/64d8ffea-0c70-43d8-9425-24841d2916c7)
+
